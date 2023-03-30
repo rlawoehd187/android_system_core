@@ -676,6 +676,7 @@ void FirstStageMount::UseDsuIfPresent() {
 }
 
 bool FirstStageMountVBootV1::GetDmVerityDevices(std::set<std::string>* devices) {
+    std::string verity_loc_device;
     need_dm_verity_ = false;
 
     for (const auto& fstab_entry : fstab_) {
@@ -688,9 +689,21 @@ bool FirstStageMountVBootV1::GetDmVerityDevices(std::set<std::string>* devices) 
         if (fstab_entry.fs_mgr_flags.verify) {
             need_dm_verity_ = true;
         }
+        // Checks if verity metadata is on a separate partition. Note that it is
+        // not partition specific, so there must be only one additional partition
+        // that carries verity state.
+        if (!fstab_entry.verity_loc.empty()) {
+            if (verity_loc_device.empty()) {
+                verity_loc_device = fstab_entry.verity_loc;
+            } else if (verity_loc_device != fstab_entry.verity_loc) {
+                LOG(ERROR) << "More than one verity_loc found: " << verity_loc_device << ", "
+                           << fstab_entry.verity_loc;
+                return false;
+            }
+        }
     }
 
-    // Includes the partition names of fstab records.
+    // Includes the partition names of fstab records and verity_loc_device (if any).
     // Notes that fstab_rec->blk_device has A/B suffix updated by fs_mgr when A/B is used.
     for (const auto& fstab_entry : fstab_) {
         // Skip pseudo filesystems.
@@ -700,6 +713,10 @@ bool FirstStageMountVBootV1::GetDmVerityDevices(std::set<std::string>* devices) 
         if (!fstab_entry.fs_mgr_flags.logical) {
             devices->emplace(basename(fstab_entry.blk_device.c_str()));
         }
+    }
+
+    if (!verity_loc_device.empty()) {
+       devices->emplace(basename(verity_loc_device.c_str()));
     }
 
     return true;

@@ -490,7 +490,7 @@ TEST(fs_mgr, ReadFstabFromFile_FsMgrOptions_AllBad) {
     std::string fstab_contents = R"fs(
 source none0       swap   defaults      encryptable,forceencrypt,fileencryption,forcefdeorfbe,keydirectory,length,swapprio,zramsize,max_comp_streams,reservedsize,eraseblk,logicalblk,sysfs_path,zram_backingdev_size
 
-source none1       swap   defaults      encryptable=,forceencrypt=,fileencryption=,keydirectory=,length=,swapprio=,zramsize=,max_comp_streams=,avb=,reservedsize=,eraseblk=,logicalblk=,sysfs_path=,zram_backingdev_size=
+source none1       swap   defaults      encryptable=,forceencrypt=,fileencryption=,keydirectory=,length=,swapprio=,zramsize=,max_comp_streams=,verify=,avb=,reservedsize=,eraseblk=,logicalblk=,sysfs_path=,zram_backingdev_size=
 
 source none2       swap   defaults      forcefdeorfbe=
 
@@ -509,6 +509,7 @@ source none2       swap   defaults      forcefdeorfbe=
     }
     EXPECT_EQ("", entry->key_loc);
     EXPECT_EQ("", entry->metadata_key_dir);
+    EXPECT_EQ("", entry->verity_loc);
     EXPECT_EQ(0, entry->length);
     EXPECT_EQ("", entry->label);
     EXPECT_EQ(-1, entry->partnum);
@@ -529,11 +530,13 @@ source none2       swap   defaults      forcefdeorfbe=
         flags.crypt = true;
         flags.force_crypt = true;
         flags.file_encryption = true;
+        flags.verify = true;
         flags.avb = true;
         EXPECT_TRUE(CompareFlags(flags, entry->fs_mgr_flags));
     }
     EXPECT_EQ("", entry->key_loc);
     EXPECT_EQ("", entry->metadata_key_dir);
+    EXPECT_EQ("", entry->verity_loc);
     EXPECT_EQ(0, entry->length);
     EXPECT_EQ("", entry->label);
     EXPECT_EQ(-1, entry->partnum);
@@ -723,6 +726,29 @@ source none5       swap   defaults      zramsize=%
     EXPECT_EQ("none5", entry->mount_point);
     EXPECT_TRUE(CompareFlags(flags, entry->fs_mgr_flags));
     EXPECT_EQ(0, entry->zram_size);
+}
+
+TEST(fs_mgr, ReadFstabFromFile_FsMgrOptions_Verify) {
+    TemporaryFile tf;
+    ASSERT_TRUE(tf.fd != -1);
+    std::string fstab_contents = R"fs(
+source none0       swap   defaults      verify=/dir/key
+)fs";
+
+    ASSERT_TRUE(android::base::WriteStringToFile(fstab_contents, tf.path));
+
+    Fstab fstab;
+    EXPECT_TRUE(ReadFstabFromFile(tf.path, &fstab));
+    ASSERT_EQ(1U, fstab.size());
+
+    auto entry = fstab.begin();
+    EXPECT_EQ("none0", entry->mount_point);
+
+    FstabEntry::FsMgrFlags flags = {};
+    flags.verify = true;
+    EXPECT_TRUE(CompareFlags(flags, entry->fs_mgr_flags));
+
+    EXPECT_EQ("/dir/key", entry->verity_loc);
 }
 
 TEST(fs_mgr, ReadFstabFromFile_FsMgrOptions_ForceEncrypt) {

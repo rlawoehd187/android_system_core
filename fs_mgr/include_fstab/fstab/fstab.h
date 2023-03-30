@@ -40,6 +40,7 @@ struct FstabEntry {
     std::string key_loc;
     std::string metadata_key_dir;
     std::string metadata_encryption;
+    std::string verity_loc;
     off64_t length = 0;
     std::string label;
     int partnum = -1;

@@ -666,6 +666,9 @@ provides the `aidl_lazy_test_1` interface.
   fstab.${ro.hardware} or fstab.${ro.hardware.platform} will be scanned for
   under /odm/etc, /vendor/etc, or / at runtime, in that order.
 
+`verity_load_state`
+> Internal implementation detail used to load dm-verity state.
+
 `verity_update_state <mount-point>`
 > Internal implementation detail used to update dm-verity state and
   set the partition._mount-point_.verified properties used by adb remount
